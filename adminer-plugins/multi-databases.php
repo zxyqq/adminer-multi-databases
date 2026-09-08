@@ -35,7 +35,10 @@ class MultiDatabases extends Plugin {
           '' => ''
         ];
         foreach ($this->databases as $name => $config) {
-            $databases[$name] = @$config['database'];
+            $databases[$name] = array(
+                'db' => (string) @$config['database'],
+                'driver' => (!empty($config['driver']) ? $config['driver'] : 'server'),
+            );
             if (empty($config['password'])) {
                 $quickSelect[$name] = $name;
             }
@@ -64,7 +67,9 @@ if (mySelect) {
 }
 qs('#myLogin').onclick = function() {
   var username = qs('input[name="auth[username]"]').value;
-  qs('input[name="auth[db]"]').value = databases[username] ? databases[username] : '';
+  var cfg = databases[username] || {};
+  qs('input[name="auth[driver]"]').value = cfg.driver || 'server';
+  qs('input[name="auth[db]"]').value = cfg.db || '';
   qs('form').submit();
 };
 qs('input[name="auth[password]"]').onkeydown = function(e) {
