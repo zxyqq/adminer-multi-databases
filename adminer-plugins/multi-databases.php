@@ -52,13 +52,16 @@ class MultiDatabases extends Plugin {
 <p><input id="myLogin" type="button" value="<?=lang('Login'); ?>"></p>
 <script<?= nonce(); ?>>
 var databases = <?= json_encode($databases); ?>;
-qs('select[name="mySelect"]').onchange = function() {
-  var username = qs('select[name="mySelect"]').value;
-  qs('input[name="auth[username]"]').value = username;
-  if (username != '') {
-    qs('#myLogin').click();
-  }
-};
+var mySelect = qs('select[name="mySelect"]');
+if (mySelect) {
+  mySelect.onchange = function() {
+    var username = mySelect.value;
+    qs('input[name="auth[username]"]').value = username;
+    if (username != '') {
+      qs('#myLogin').click();
+    }
+  };
+}
 qs('#myLogin').onclick = function() {
   var username = qs('input[name="auth[username]"]').value;
   qs('input[name="auth[db]"]').value = databases[username] ? databases[username] : '';
