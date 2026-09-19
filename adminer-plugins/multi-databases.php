@@ -42,7 +42,10 @@ class MultiDatabases extends Plugin {
       // 守卫:仅当当前账号的会话密码有效时续期 —— auth_error 页面(登录失败/
       // 暴力锁定/永久状态损坏)核心会 set_password(...,null)+unset_permanent()
       // 清掉当前条目,此时绝不复活原 cookie,避免登录失败又被续期而死循环。
-      if (!empty($_COOKIE['adminer_permanent'])
+      // 再限 GET:登录 POST 上核心会写入更新后的 adminer_permanent,
+      // 此处重发请求开始时读到的旧值会把它覆盖掉。
+      if ($_SERVER['REQUEST_METHOD'] === 'GET'
+        && !empty($_COOKIE['adminer_permanent'])
         && isset($_GET['username']) && is_string(get_password())
       ) {
         cookie('adminer_permanent', $_COOKIE['adminer_permanent'], 2592000);
