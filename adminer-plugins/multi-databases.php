@@ -35,6 +35,20 @@ class MultiDatabases extends Plugin {
       return 'cc-adminer-multi-databases-v1';
     }
 
+    function headers() {
+      // 滚动续期:核心只在显式登录时写一次 adminer_permanent(30 天),
+      // 这里在每次页面渲染前重发同名 cookie,把有效期从"当前"起顺延 30 天,
+      // 只要 30 天内访问过一次就不会掉登录。
+      // 守卫:仅当当前账号的会话密码有效时续期 —— auth_error 页面(登录失败/
+      // 暴力锁定/永久状态损坏)核心会 set_password(...,null)+unset_permanent()
+      // 清掉当前条目,此时绝不复活原 cookie,避免登录失败又被续期而死循环。
+      if (!empty($_COOKIE['adminer_permanent'])
+        && isset($_GET['username']) && is_string(get_password())
+      ) {
+        cookie('adminer_permanent', $_COOKIE['adminer_permanent'], 2592000);
+      }
+    }
+
     function loginForm() {
         $databases = [];
         $quickSelect = [
