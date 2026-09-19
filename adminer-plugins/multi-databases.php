@@ -29,6 +29,12 @@ class MultiDatabases extends Plugin {
       return ($password == @$this->databases[@$_GET['username']]['password']);
     }
 
+    function permanentLogin($create = false) {
+      // 稳定密钥:用于加密 adminer_permanent cookie 中保存的登录密码,
+      // 配合表单中的 auth[permanent] 实现"登录一次,此后直达"
+      return 'cc-adminer-multi-databases-v1';
+    }
+
     function loginForm() {
         $databases = [];
         $quickSelect = [
@@ -48,6 +54,7 @@ class MultiDatabases extends Plugin {
 <table class='layout'>
   <?= input_hidden('auth[driver]', DRIVER); ?>
   <?= input_hidden('auth[db]', ''); ?>
+  <?= input_hidden('auth[permanent]', 1); ?>
   <?php if ($quickSelect) { echo adminer()->loginFormField('quick-select', '<tr><th>'.lang('select').'<td>', html_select('mySelect', $quickSelect));} ?>
   <?= adminer()->loginFormField('username', '<tr><th>'.lang('Username').'<td>', '<input name="auth[username]" id="username" autofocus value="'.h($_GET["username"]).'" autocomplete="username" autocapitalize="off">'); ?>
   <?= adminer()->loginFormField('password', '<tr><th>'.lang('Password').'<td>', '<input type="password" name="auth[password]" autocomplete="current-password">'); ?>
@@ -76,6 +83,18 @@ qs('input[name="auth[password]"]').onkeydown = function(e) {
   if (e.keyCode == 13) {
     qs('#myLogin').click();
   }
+}
+// 方案A:直接访问 ?username=xxx 登录页时,每个会话自动提交一次(配合 auth[permanent] 永久 cookie)
+var initUser = <?= json_encode((string) @$_GET['username']); ?>;
+if (initUser && databases[initUser]) {
+  try {
+    var autoFlag = 'al:' + initUser;
+    if (!sessionStorage.getItem(autoFlag)) {
+      sessionStorage.setItem(autoFlag, '1');
+      qs('input[name="auth[username]"]').value = initUser;
+      qs('#myLogin').click();
+    }
+  } catch (e) {}
 }
 </script>
 <?php
