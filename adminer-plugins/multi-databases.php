@@ -54,20 +54,40 @@ class MultiDatabases extends Plugin {
 
     function loginForm() {
         $databases = [];
-        $quickSelect = [
-          '' => ''
-        ];
+        $quickSelect = ['' => ''];
+        $groups = [];
         foreach ($this->databases as $name => $config) {
             $databases[$name] = array(
                 'db' => (string) @$config['database'],
                 'driver' => (!empty($config['driver']) ? $config['driver'] : 'server'),
+                'passwordless' => empty($config['password']),
             );
             if (empty($config['password'])) {
                 $quickSelect[$name] = $name;
             }
+            $at = strpos($name, '@');
+            $group = ($at === false ? '' : substr($name, $at + 1));
+            $groups[$group][$name] = ($at === false ? $name : substr($name, 0, $at));
         }
         count($quickSelect) == 1 && $quickSelect = [];
 ?>
+<?php if ($groups) { ?>
+<fieldset id='quick-login' style='font-size:200%'>
+  <legend>Quick login</legend>
+  <div style='display:flex;flex-wrap:wrap;gap:0.6em 1.5em;align-items:flex-start'>
+<?php foreach ($groups as $group => $items) { ?>
+    <table class='odds' style='width:auto;margin:0'>
+      <thead><tr><th><?= h($group !== '' ? $group : 'other') ?></th></tr></thead>
+      <tbody>
+<?php foreach ($items as $name => $label) { ?>
+        <tr><td><a href="?username=<?= urlencode($name) ?>" data-user="<?= h($name) ?>"><?= h($label) ?></a></td></tr>
+<?php } ?>
+      </tbody>
+    </table>
+<?php } ?>
+  </div>
+</fieldset>
+<?php } ?>
 <table class='layout'>
   <?= input_hidden('auth[driver]', DRIVER); ?>
   <?= input_hidden('auth[db]', ''); ?>
@@ -79,14 +99,31 @@ class MultiDatabases extends Plugin {
 <p><input id="myLogin" type="button" value="<?=lang('Login'); ?>"></p>
 <script<?= nonce(); ?>>
 var databases = <?= json_encode($databases); ?>;
+function quickLogin(name) {
+  var cfg = databases[name] || {};
+  qs('input[name="auth[username]"]').value = name;
+  if (cfg.passwordless) {
+    qs('#myLogin').click();
+  } else {
+    qs('input[name="auth[password]"]').focus();
+  }
+}
 var mySelect = qs('select[name="mySelect"]');
 if (mySelect) {
   mySelect.onchange = function() {
-    var username = mySelect.value;
-    qs('input[name="auth[username]"]').value = username;
-    if (username != '') {
-      qs('#myLogin').click();
+    if (mySelect.value != '') {
+      quickLogin(mySelect.value);
     }
+  };
+}
+var accounts = qs('#quick-login');
+if (accounts) {
+  accounts.onclick = function(e) {
+    var a = e.target;
+    while (a && a.tagName != 'A') a = a.parentNode;
+    if (!a || !a.getAttribute('data-user')) return;
+    e.preventDefault();
+    quickLogin(a.getAttribute('data-user'));
   };
 }
 qs('#myLogin').onclick = function() {
@@ -101,15 +138,14 @@ qs('input[name="auth[password]"]').onkeydown = function(e) {
     qs('#myLogin').click();
   }
 }
-// 方案A:直接访问 ?username=xxx 登录页时,每个会话自动提交一次(配合 auth[permanent] 永久 cookie)
+// 方案A:直接访问 ?username=xxx 登录页时,免密账号每个会话自动提交一次(配合 auth[permanent] 永久 cookie)
 var initUser = <?= json_encode((string) @$_GET['username']); ?>;
 if (initUser && databases[initUser]) {
   try {
     var autoFlag = 'al:' + initUser;
-    if (!sessionStorage.getItem(autoFlag)) {
+    if (databases[initUser].passwordless && !sessionStorage.getItem(autoFlag)) {
       sessionStorage.setItem(autoFlag, '1');
-      qs('input[name="auth[username]"]').value = initUser;
-      qs('#myLogin').click();
+      quickLogin(initUser);
     }
   } catch (e) {}
 }
